@@ -242,13 +242,16 @@ const forecastCase = (c: CaseFile): Array<{ hour: number; q: number[] }> => {
     }
     if (pool.length < 3) return fallbackHours(p1);
     // The ramp shift: how much busier the case's pre-release day was,
-    // against the comparables' median, in log units.
+    // against the comparables' median, in log units. Clamped, so a freak
+    // pre-release spike (a trailer premiere, a leak) cannot drag the
+    // whole day's curve up or down by more than a factor of ~2.
     let shift = 0;
     const targetPre = casePreRatio(c, p1);
     if (targetPre !== null) {
       const pres = pool.map((e) => e.pre).filter((x): x is number => x !== null);
       if (pres.length > 0) {
-        shift = RAMP_BETA * (Math.log(targetPre) - Math.log(median(pres)));
+        const raw = RAMP_BETA * (Math.log(targetPre) - Math.log(median(pres)));
+        shift = Math.max(-0.75, Math.min(0.75, raw));
       }
     }
     const hours: Array<{ hour: number; q: number[] }> = [];
